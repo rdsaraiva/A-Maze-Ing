@@ -1,4 +1,3 @@
-import os
 import sys
 from typing import List, Tuple, Set
 
@@ -9,7 +8,7 @@ PALETAS = [
         "caminho": "\033[38;2;80;220;240m░░\033[0m",
         "entrada": "\033[38;2;160;70;255m██\033[0m",
         "saida": "\033[38;2;255;50;100m██\033[0m",
-        "p42": "\033[38;2;240;230;210m  \033[0m",
+        "p42": "\033[38;2;57;255;20m█░\033[0m",
     },
     {
         "nome": "Matrix Terminal",
@@ -17,7 +16,7 @@ PALETAS = [
         "caminho": "\033[38;2;186;104;200m░░\033[0m",
         "entrada": "\033[38;2;255;255;255m██\033[0m",
         "saida": "\033[38;2;255;23;68m██\033[0m",
-        "p42": "\033[38;2;255;214;0m  \033[0m",
+        "p42": "\033[38;2;57;255;20m█░\033[0m",
     },
     {
         "nome": "Synthwave Sunset",
@@ -25,12 +24,15 @@ PALETAS = [
         "caminho": "\033[38;2;255;234;0m░░\033[0m",
         "entrada": "\033[38;2;0;229;255m██\033[0m",
         "saida": "\033[38;2;255;45;85m██\033[0m",
-        "p42": "\033[38;2;255;255;255m  \033[0m",
+        "p42": "\033[38;2;57;255;20m█░\033[0m",
     },
 ]
 
 
-def obter_posicoes_caminho(entry: Tuple[int, int], caminho_direcoes: List[str]) -> Set[Tuple[int, int]]:
+def obter_posicoes_caminho(
+    entry: Tuple[int, int],
+    caminho_direcoes: List[str],
+) -> Set[Tuple[int, int]]:
     posicoes = set()
     x, y = entry
     posicoes.add((x, y))
@@ -43,7 +45,11 @@ def obter_posicoes_caminho(entry: Tuple[int, int], caminho_direcoes: List[str]) 
     return posicoes
 
 
-def desenhar_labirinto(maze, mostrar_caminho: bool = True, indice_paleta: int = 0) -> None:
+def desenhar_labirinto(
+    maze,
+    mostrar_caminho: bool = True,
+    indice_paleta: int = 0,
+) -> None:
     # Passo 1: Limpar o terminal
     sys.stdout.write("\033[H\033[2J\033[3J")
     sys.stdout.flush()
@@ -58,10 +64,14 @@ def desenhar_labirinto(maze, mostrar_caminho: bool = True, indice_paleta: int = 
         caminho_set = obter_posicoes_caminho(maze.entry, caminho_dirs)
 
     # Passo 3: Criar a matriz visual preenchida inicialmente só com paredes
-    # Cada célula (x,y) ocupa 2 caracteres de largura e 2 de altura na grelha final
+    # Cada célula (x,y) ocupa 2 caracteres de largura e 2 de altura na
+    # grelha final
     grelha_largura = maze.width * 2 + 1
     grelha_altura = maze.height * 2 + 1
-    grelha = [[p_wall for _ in range(grelha_largura)] for _ in range(grelha_altura)]
+    grelha = [
+        [p_wall for _ in range(grelha_largura)]
+        for _ in range(grelha_altura)
+    ]
 
     # Passo 4: Escavar o interior das células e abrir as paredes
     for y in range(maze.height):
@@ -69,7 +79,8 @@ def desenhar_labirinto(maze, mostrar_caminho: bool = True, indice_paleta: int = 
             célula = maze.walls[y][x]
             pos = (x, y)
 
-            # Mapeamento de coordenadas (x, y) do labirinto para a grelha de texto
+            # Mapeamento de coordenadas (x, y) do labirinto para a grelha
+            # de texto
             gx = x * 2 + 1
             gy = y * 2 + 1
 
@@ -106,9 +117,16 @@ def menu_interativo(maze, gerador_callback) -> None:
         desenhar_labirinto(maze, mostrar_caminho, indice_paleta)
         paleta = PALETAS[indice_paleta % len(PALETAS)]
         nome_tema = paleta["nome"]
-        legenda = f"Entrada: {paleta['entrada']}  Saída: {paleta['saida']}  Caminho: {paleta['caminho']}"
+        legenda = (
+            f"Entrada: {paleta['entrada']}  "
+            f"Saída: {paleta['saida']}  "
+            f"Caminho: {paleta['caminho']}"
+        )
 
-        print(f"\n\033[1m=== A-Maze-ing ===\033[0m [Tema: \033[36m{nome_tema}\033[0m]")
+        print(
+            f"\n\033[1m=== A-Maze-ing ===\033[0m "
+            f"[Tema: \033[36m{nome_tema}\033[0m]"
+        )
         print(f"Legenda: {legenda}\n")
         print("1. Regenerar novo labirinto")
         print("2. Mostrar/Ocultar caminho mais curto")
