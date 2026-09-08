@@ -1,5 +1,6 @@
 import sys
 from maze import MazeGenerator
+from visualizer import menu_interativo
 
 
 def main():
@@ -26,7 +27,7 @@ def main():
         for chave in chaves_obrigatorias:
             if chave not in config:
                 raise KeyError(f"Falta {chave} no config.txt")
-            
+
         width = int(config["WIDTH"])
         height = int(config["HEIGHT"])
 
@@ -42,8 +43,20 @@ def main():
 
         perfeito = config["PERFECT"] == "True"
 
-        g = MazeGenerator(width=width, height=height, entry=entrada, exit=saida)
-        g.generate()
+        # SEED é opcional: se não vier no config, fica None (aleatório).
+        seed = None
+        if "SEED" in config:
+            seed = int(config["SEED"])
+
+        def criar_maze():
+            """Cria e gera um novo maze de acordo com o config atual."""
+            novo = MazeGenerator(width=width, height=height, entry=entrada, exit=saida, seed=seed)
+            novo.generate(perfect=perfeito)
+            if not perfeito:
+                novo.make_pacman_board()
+            return novo
+
+        g = criar_maze()
 
         digitos = "0123456789ABCDEF"
         linhas_output = []
@@ -52,8 +65,24 @@ def main():
             linha_hex = "".join(digitos[num] for num in linha_maze)
             linhas_output.append(linha_hex)
 
+        caminho = g.shortest_path()
+
+        # Escrever o ficheiro de output no formato pedido pelo enunciado:
+        # paredes em hex, linha vazia, entrada, saída, caminho mais curto.
+        with open(config["OUTPUT_FILE"], "w") as f_out:
+            for linha in linhas_output:
+                f_out.write(linha + "\n")
+            f_out.write("\n")
+            f_out.write(f"{entrada[0]},{entrada[1]}\n")
+            f_out.write(f"{saida[0]},{saida[1]}\n")
+            f_out.write("".join(caminho) + "\n")
+
         for linha in linhas_output:
             print(linha)
+
+        # Mostrar o labirinto e o menu interativo (regenerar, mostrar/ocultar
+        # caminho, mudar cores).
+        menu_interativo(g, criar_maze)
 
     except Exception as e:
         print(f"Erro: {e}")
