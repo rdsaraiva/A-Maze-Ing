@@ -1,5 +1,7 @@
 import sys
-from typing import List, Tuple, Set
+from typing import List, Tuple, Set, Callable
+
+from maze import MazeGenerator
 
 PALETAS = [
     {
@@ -33,7 +35,7 @@ def obter_posicoes_caminho(
     entry: Tuple[int, int],
     caminho_direcoes: List[str],
 ) -> Set[Tuple[int, int]]:
-    posicoes = set()
+    posicoes: Set[Tuple[int, int]] = set()
     x, y = entry
     posicoes.add((x, y))
     DELTA = {"N": (0, -1), "E": (1, 0), "S": (0, 1), "W": (-1, 0)}
@@ -46,7 +48,7 @@ def obter_posicoes_caminho(
 
 
 def desenhar_labirinto(
-    maze,
+    maze: MazeGenerator,
     mostrar_caminho: bool = True,
     indice_paleta: int = 0,
 ) -> None:
@@ -58,7 +60,7 @@ def desenhar_labirinto(
     p_wall = paleta["parede"]
 
     # Passo 2: Mapear o caminho mais curto
-    caminho_set = set()
+    caminho_set: Set[Tuple[int, int]] = set()
     if mostrar_caminho:
         caminho_dirs = maze.shortest_path()
         caminho_set = obter_posicoes_caminho(maze.entry, caminho_dirs)
@@ -68,7 +70,7 @@ def desenhar_labirinto(
     # grelha final
     grelha_largura = maze.width * 2 + 1
     grelha_altura = maze.height * 2 + 1
-    grelha = [
+    grelha: List[List[str]] = [
         [p_wall for _ in range(grelha_largura)]
         for _ in range(grelha_altura)
     ]
@@ -109,7 +111,10 @@ def desenhar_labirinto(
     print(output)
 
 
-def menu_interativo(maze, gerador_callback) -> None:
+def menu_interativo(
+    maze: MazeGenerator,
+    gerador_callback: Callable[[], MazeGenerator],
+) -> None:
     mostrar_caminho = True
     indice_paleta = 0
 

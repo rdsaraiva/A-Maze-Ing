@@ -9,22 +9,21 @@ configuration file, the program generates a maze — either a **perfect maze**
 (exactly one path between entrance and exit, no loops) or a **Pac-Man-style
 board** (fully connected, open corners and centre, at least two independent
 routes, rare dead-ends) — writes it to an output file using a compact
-hexadecimal wall encoding, and displays it visually (ASCII in the terminal
-and/or a graphical MiniLibX window).
+hexadecimal wall encoding, and displays it in the terminal using Unicode
+characters and ANSI colours.
 
 The goal of the project is twofold:
 - Explore classic maze-generation algorithms (recursive backtracker, Prim's,
   Kruskal's, etc.), randomness, and the graph-theory link between perfect
   mazes and spanning trees.
 - Package the generation logic as a **reusable, pip-installable module**
-  (`mazegen`) that can be imported by future projects, independently of the
-  CLI/visualization code.
+  distributed as `mazegen`, exposing the `maze` module for use in future
+  projects independently of the CLI and visualization code.
 
 ## Instructions
 
 ### Requirements
 - Python 3.10+
-- (Optional, for graphical mode) MiniLibX and its Python bindings
 
 ### Installation
 ```bash
@@ -32,8 +31,11 @@ git clone <repo-url>
 cd a-maze-ing
 make install
 ```
-`make install` creates/uses a virtual environment and installs the
-dependencies listed in `requirements.txt` (or via `pyproject.toml`).
+`make install` installs the development tools listed in `requirements.txt`
+using the current Python environment. It does not create or activate a
+virtual environment.
+
+The maze generator itself uses only the Python standard library.
 
 ### Running the project
 ```bash
@@ -52,11 +54,8 @@ python3 a_maze_ing.py config.txt
 | `make clean`  | Removes caches (`__pycache__`, `.mypy_cache`, etc.)             |
 | `make lint`   | Runs `flake8 .` and `mypy .` with the required flags            |
 | `make lint-strict` | (optional) Runs `flake8 .` and `mypy . --strict`           |
+| `make build` | Builds the reusable distribution and places the `.whl` and `.tar.gz` files at the repository root |
 
-### Running the tests (not graded)
-```bash
-pytest
-```
 
 ## Configuration file format
 
@@ -71,7 +70,14 @@ line. Lines starting with `#` are treated as comments and ignored.
 | `EXIT`        | Exit coordinates `x,y`              | `EXIT=19,14`          | yes      |
 | `OUTPUT_FILE` | Path of the generated output file   | `OUTPUT_FILE=maze.txt`| yes      |
 | `PERFECT`     | `True` for a perfect maze (single path, no loops); `False` (default) for a Pac-Man-style board with loops | `PERFECT=True` | yes |
-| `SEED`        | Random seed, for reproducible mazes | `SEED=42`             | yes (for reproducibility) |
+| `SEED` | Optional integer seed for reproducible generation | `SEED=42` | no |
+
+With the same seed, configuration and implementation, generation produces
+the same maze. The menu's regeneration option reuses the configured seed,
+so it reproduces the same maze when `SEED` is provided.
+
+If `SEED` is omitted, each generation uses a newly initialized random
+generator and may produce a different maze.
 
 A ready-to-use default configuration file, `config.txt`, is provided at the
 root of the repository.
@@ -82,7 +88,8 @@ clear error message; the program never crashes on invalid input.
 
 ## Maze generation algorithm
 
-**Algorithm chosen: Recursive Backtracker (randomized depth-first search).**
+**Algorithm chosen: randomized depth-first search with backtracking,
+implemented using an explicit stack.**
 
 Starting from a grid where every cell has all four walls closed, the
 algorithm picks a starting cell, marks it as visited, and repeatedly moves
@@ -94,16 +101,26 @@ from there. This carves a spanning tree of the grid: by construction there
 is exactly one path between any two cells, which is exactly what the
 `PERFECT=True` mode requires.
 
-To produce the `PERFECT=False` (Pac-Man-style) board, the same spanning
-tree is used as a base and then adapted:
-- A controlled number of extra walls are removed (walls that were left
-  standing by the backtracker) to introduce loops, giving at least two
-  independent routes between the corners/centre and reducing dead-ends.
-- The four corners and the centre of the grid are explicitly forced open,
-  as required for ghost/super-pac-gum spawn points and the player's start.
-- The generator checks corridor width (never wider than 2 cells) and
-  connectivity after this loop-adding pass, and also carves the required
-  "42" pattern of fully closed cells.
+Before DFS starts, the generator reserves fully closed cells forming the
+"42" pattern. It searches for a placement that preserves connectivity
+between all remaining cells and avoids the entry and exit.
+
+In non-perfect mode, the placement also protects the four corners and
+the centre, keeping at least two available neighbouring cells for each.
+
+To produce the `PERFECT=False` board, the program first generates the DFS
+spanning tree and then calls `make_pacman_board()`:
+
+- It opens additional passages at the corners and centre to give them
+  at least two exits.
+- It repeatedly attempts to remove dead-ends, preferring openings that
+  connect two dead-ends at once.
+- It ensures that at least two additional walls have been opened.
+  Starting from a connected tree, each new passage adds one independent
+  cycle.
+
+The implementation does not perform an explicit check for fully open
+3x3 areas.
 
 ### Why this algorithm?
 
@@ -116,57 +133,112 @@ with relatively few short dead-ends compared to some other algorithms
 (e.g. plain Prim's), which made it a good starting point to "braid" into
 the Pac-Man board by removing a small, controlled number of extra walls
 afterward, rather than having to fight a very dense maze of short
-dead-ends. We did not implement any bonus features (no support for
-multiple algorithms, no animation, no zero-dead-end braided bonus).
+dead-ends. The project does not implement multiple generation algorithms or
+generation animation. The Pac-Man adaptation attempts to eliminate
+dead-ends, but does not guarantee a zero-dead-end board for every
+configuration.
 
-## Reusable module (`mazegen`)
+## Reusable module
 
-All maze-generation logic lives in a single reusable class, `MazeGenerator`,
-inside the standalone `mazegen` package, independent from the CLI and
-display code. It is distributed as a pip-installable package
-(`mazegen-1.0.0-py3-none-any.whl` / `.tar.gz`) built from the sources at
-the root of this repository, and is released under the license described in
-[`LICENSE.md`](LICENSE.md).
+The reusable generation logic is implemented by the `MazeGenerator`
+class in `maze.py`. It is independent of the configuration parser,
+output writer and terminal visualizer.
 
-### Building the package
-```bash
-python3 -m pip install --upgrade build
-python3 -m build
-```
-This produces the `.whl` and `.tar.gz` archives under `dist/`.
+The distribution is named `mazegen`, while the Python module is named
+`maze`. After installation, import the class using:
 
-### Installing it in another project
-```bash
-pip install mazegen-1.0.0-py3-none-any.whl
-```
-
-### Basic usage
 ```python
-from mazegen import MazeGenerator
+from maze import MazeGenerator
+```
 
-# Instantiate the generator with custom parameters
+The code is distributed under the MIT license in `LICENSE.md`.
+
+### Building the distribution
+
+```bash
+make build
+```
+
+This creates the following files at the repository root:
+
+- `mazegen-1.0.0-py3-none-any.whl`
+- `mazegen-1.0.0.tar.gz`
+
+The build configuration is provided in `pyproject.toml`.
+The README supplies the distribution description.
+
+### Installing in another project
+
+Inside the target project's virtual environment:
+
+```bash
+python -m pip install /path/to/mazegen-1.0.0-py3-none-any.whl
+```
+
+Replace `/path/to/` with the actual location of the wheel.
+
+### Basic usage: perfect maze
+
+```python
+from maze import MazeGenerator
+
 generator = MazeGenerator(
     width=20,
     height=15,
     entry=(0, 0),
     exit=(19, 14),
-    perfect=True,
     seed=42,
 )
 
-# Generate the maze
-maze = generator.generate()
+generator.generate(perfect=True)
 
-# Access the generated structure (grid of cells with wall information)
-grid = maze.grid
+grid = generator.walls
+path = generator.shortest_path()
 
-# Access a solution (shortest path from entry to exit)
-path = maze.solution  # e.g. ['N', 'E', 'E', 'S', ...]
+print("".join(path))
 ```
 
-> The internal structure returned by `mazegen` is not necessarily the same
-> hexadecimal format used by the output file produced by `a_maze_ing.py`;
-> `a_maze_ing.py` is responsible for converting it to that file format.
+The constructor accepts the dimensions, entry, exit and optional seed.
+The `perfect` argument belongs to `generate()`, not to the constructor.
+
+`generate()` modifies the object and returns `None`.
+
+### Non-perfect mode
+
+```python
+generator = MazeGenerator(
+    width=20,
+    height=15,
+    entry=(0, 0),
+    exit=(19, 14),
+    seed=42,
+)
+
+generator.generate(perfect=False)
+generator.make_pacman_board()
+
+grid = generator.walls
+path = generator.shortest_path()
+```
+
+In this implementation, `generate(perfect=False)` prepares the pattern
+placement for non-perfect mode and generates the DFS tree.
+The separate call to `make_pacman_board()` opens additional passages.
+
+### Accessing the result
+
+- `generator.walls[y][x]` contains the wall value of cell `(x, y)`.
+- Wall bits are North=1, East=2, South=4 and West=8.
+- A set bit means a closed wall; a cleared bit means an open passage.
+- `generator.blocked_cells` contains the coordinates reserved for the 42.
+- `generator.shortest_path()` returns a list of directions: N, E, S or W.
+
+Coordinates use `(x, y)`, with the origin at the top-left.
+The matrix is indexed by `[y][x]`.
+
+Create a new `MazeGenerator` instance for each new maze, as the CLI does.
+The generator does not write output files or display the interactive menu;
+those responsibilities belong to the main program and visualizer.
 
 ## Resources
 
@@ -175,9 +247,10 @@ path = maze.solution  # e.g. ['N', 'E', 'E', 'S', ...]
   (recursive backtracker, Prim's, Kruskal's)
 - Course material and Wikipedia on spanning trees, to understand why a
   recursive backtracker produces a perfect maze
-- Python official documentation for the `typing` and `argparse` modules
+- Python official documentation for `random`, `collections.deque`,
+  `typing` and file handling
 - `mypy` and `flake8` documentation for the linting configuration
-- MiniLibX documentation (school intranet), for the graphical rendering mode
+
 
 ### AI usage
 
@@ -226,6 +299,5 @@ polishing to the last days.
 ### Tools used
 - Git / GitHub for version control and code review
 - `flake8` and `mypy` for code quality and static typing checks
-- `pytest` for unit tests (not submitted, used during development)
 - An AI assistant (Claude), as described above, for README drafting and
   design discussions

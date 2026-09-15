@@ -382,7 +382,7 @@ class MazeGenerator:
 
         return total
 
-    def _paredes_fechadas(self, x: int, y: int):
+    def _paredes_fechadas(self, x: int, y: int) -> list[tuple[str, int, int]]:
         """Devolve as paredes internas que ainda podem ser abertas."""
 
         if (x, y) in self.blocked_cells:

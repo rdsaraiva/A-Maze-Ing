@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mazegen"
+version = "1.0.0"
+description = "A maze generator"
+authors = [
+    { name = "roda-fon" },
+    { name = "dcarneir" }
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE.md" }
+
+[tool.setuptools]
+py-modules = ["maze"]
